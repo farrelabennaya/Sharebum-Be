@@ -2,16 +2,13 @@
   "version": 2,
   "framework": null,
   "functions": {
-    "api/index.php": {
-      "runtime": "vercel-php@0.7.4"
-    }
+    "api/index.php": { "runtime": "vercel-php@0.7.4" }
   },
   "routes": [
     { "src": "^/build/(.*)$", "dest": "/public/build/$1" },
     { "src": "^(?!/build/).*", "dest": "/api/index.php" }
   ],
-  "installCommand": "composer install --no-dev --prefer-dist --classmap-authoritative && npm ci",
-  "buildCommand": "composer dump-autoload -o && npm run build",
+  "buildCommand": "npm ci && npm run build",
   "outputDirectory": "public",
   "public": true,
   "env": {
