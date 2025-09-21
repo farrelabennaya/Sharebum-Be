@@ -1,34 +1,38 @@
 {
-    "version": 2,
-    "framework": null,
-    "functions": {
-        "api/index.php": { "runtime": "vercel-php@0.7.4" }
-    },
-    "routes": [
-        { "src": "/build/(.*)", "dest": "/public/build/" },
-        { "src": "/(.*)", "dest": "/api/index.php" }
-    ],
-    "public": true,
-    "buildCommand": "vite build",
-    "outputDirectory": "public",
-    "env": {
-        "APP_ENV": "production",
-        "APP_DEBUG": "false",
-        "APP_URL": "https://yourproductionurl.com",
-        "APP_KEY": "base64:McoL+EnrH/QLBQeC6wq1Oa4wbeKFA1KgH7DKwvTI8KU=",
-        "APP_CONFIG_CACHE": "/tmp/config.php",
-        "APP_EVENTS_CACHE": "/tmp/events.php",
-        "APP_PACKAGES_CACHE": "/tmp/packages.php",
-        "APP_ROUTES_CACHE": "/tmp/routes.php",
-        "APP_SERVICES_CACHE": "/tmp/services.php",
-        "VIEW_COMPILED_PATH": "/tmp",
-        "CACHE_DRIVER": "array",
-        "LOG_CHANNEL": "stderr",
-        "SESSION_DRIVER": "cookie",
-        "DB_CONNECTION": "mysql",
-        "DB_HOST": "4gg.h.filess.io",
-        "DB_PORT": "3306",
-        "DB_DATABASE": "db2024_stormtorn",
-        "DB_USERNAME": "db2024_stormtorn"
+  "version": 2,
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.7.4",
+      "excludeFiles": [
+        "**/*.md",
+        "**/*.dist",
+        "**/*.map",
+        "**/*.ts",
+        ".git/**",
+        ".github/**",
+        ".vscode/**",
+        "node_modules/**",
+        "tests/**",
+        "storage/logs/**",
+        "storage/app/**",
+        "storage/framework/cache/**",
+        "storage/framework/sessions/**",
+        "storage/framework/testing/**",
+        "public/storage/**",
+        "vendor/**/tests/**",
+        "vendor/**/test/**",
+        "vendor/**/docs/**",
+        "vendor/**/doc/**",
+        "vendor/**/examples/**",
+        "vendor/**/Examples/**",
+        "vendor/bin/**"
+      ]
     }
+  },
+  "routes": [
+    { "src": "/build/(.*)", "dest": "/public/build/" },
+    { "src": "/(.*)", "dest": "/api/index.php" }
+  ],
+  "buildCommand": "composer install --no-dev --prefer-dist --classmap-authoritative && npm ci && npm run build",
+  "outputDirectory": "public"
 }
