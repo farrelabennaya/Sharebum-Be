@@ -1,36 +1,31 @@
-# Stage 1 - Build Frontend (Vite)
-FROM node:18 AS frontend
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+# Dockerfile (API only)
+FROM php:8.2-cli
 
-# Stage 2 - Backend (Laravel + PHP + Composer)
-FROM php:8.2-fpm AS backend
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git curl unzip libpq-dev libonig-dev libzip-dev zip \
+# deps
+RUN apt-get update && apt-get install -y git unzip libzip-dev libonig-dev libpq-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring zip
 
-# Install Composer
+# composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /app
 
-# Copy app files
+# install deps produksi
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --prefer-dist --classmap-authoritative --no-interaction
+
+# copy source laravel
 COPY . .
 
-# Copy built frontend from Stage 1
-COPY --from=frontend /app/public/dist ./public/dist
+# optim autoload
+RUN composer dump-autoload -o
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+# optional (boleh aktifkan kalau env sudah tersedia saat build)
+# RUN php artisan config:cache && php artisan route:cache
 
-# Laravel setup
-RUN php artisan config:clear && \
-    php artisan route:clear && \
-    php artisan view:clear
+# Render inject PORT
+ENV PORT=10000
+EXPOSE 10000
 
-CMD ["php-fpm"]
+# jalankan php built-in server
+CMD php -d variables_order=EGPCS -S 0.0.0.0:$PORT -t public
