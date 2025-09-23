@@ -1,24 +1,31 @@
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
-# Install system dependencies
+# deps yang umum untuk Laravel + MySQL
 RUN apt-get update && apt-get install -y \
-    git curl unzip libpq-dev libonig-dev libzip-dev zip \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip
+    git unzip libzip-dev libonig-dev libpq-dev \
+ && docker-php-ext-install pdo pdo_mysql mbstring zip
 
-# Install Composer
+# composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /app
 
-# Copy app files
+# install dependency produksi dulu (pakai lockfile)
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --prefer-dist --classmap-authoritative --no-interaction
+
+# copy source
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+# optimize autoload
+RUN composer dump-autoload -o
 
-# Laravel setup
-RUN php artisan config:clear && \
-    php artisan route:clear && \
-    php artisan view:clear
+# (opsional) cache kalau env sudah tersedia saat build
+# RUN php artisan config:cache && php artisan route:cache
 
-CMD ["php-fpm"]
+# penting: Render inject PORT; pastikan listen di situ
+ENV PORT=10000
+EXPOSE 10000
+
+# pakai sh -c supaya $PORT diexpand
+CMD ["sh", "-c", "php -d variables_order=EGPCS -S 0.0.0.0:${PORT:-10000} -t public"]
