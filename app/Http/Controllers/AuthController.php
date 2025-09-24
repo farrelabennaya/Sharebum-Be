@@ -34,7 +34,17 @@ class AuthController extends Controller
         ]);
 
         // kirim link verifikasi (signed URL)
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => bcrypt($data['password']),
+        ]);
+
+        // kirim link verifikasi (signed URL)
         $user->sendEmailVerificationNotification();
+        // kirim link verifikasi via Resend (service kamu)
+        app(\App\Services\VerificationMailer::class)->send($user);
+
 
         // TIDAK kirim token. Suruh cek email.
         return response()->json([
