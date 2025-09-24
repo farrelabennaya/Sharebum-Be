@@ -16,6 +16,7 @@ use App\Http\Controllers\ReactionController;
 use App\Http\Controllers\AssetSocialController;
 use App\Http\Controllers\PublicAlbumController;
 use App\Http\Controllers\ProfileAvatarController;
+use App\Http\Controllers\EmailVerificationController;
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::post('/auth/logout',   [AuthController::class, 'logout'])->middleware('auth:sanctum');
@@ -112,3 +113,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/public/albums/{slug}/assets/{asset}/react', [PublicAlbumController::class, 'reactAsset']);
     Route::post('/public/albums/{slug}/assets/{asset}/comments', [PublicAlbumController::class, 'commentAsset']);
 });
+
+Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware(['signed','throttle:6,1'])
+    ->name('verification.verify');
+
+// resend link (tanpa login, rate limit ketat)
+Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+    ->middleware('throttle:3,1');
