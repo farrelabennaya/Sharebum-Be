@@ -7,49 +7,72 @@ use App\Models\User;
 use App\Support\Turnstile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\QueryException;
 
 class AuthController extends Controller
 {
-    public function register(Request $r)
+   public function register(Request $r)
     {
+        // normalisasi email biar konsisten
+        if ($r->has('email')) {
+            $r->merge(['email' => mb_strtolower(trim($r->input('email')))]);
+        }
+
         $data = $r->validate([
             'name'  => 'required|string|max:120',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:8|confirmed', // ⬅️ pakai konfirmasi
-            'cf-turnstile-response' => 'nullable|string',     // opsional: aktifkan kalau mau wajib
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'cf-turnstile-response' => 'nullable|string',
         ]);
 
-        // (opsional) verifikasi Turnstile
         if (filled($data['cf-turnstile-response'] ?? null)) {
             if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
                 return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
             }
         }
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-            // 'email_verified_at' => null (default)
-        ]);
+        // Jika email sudah ada:
+        if ($existing = User::whereEmail($data['email'])->first()) {
+            if ($existing->hasVerifiedEmail()) {
+                return response()->json([
+                    'message' => 'Periksa kembali data yang diisi.',
+                    'errors'  => ['email' => ['Email sudah terdaftar.']],
+                ], 422);
+            }
 
-        // kirim link verifikasi (signed URL)
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-        ]);
+            // belum verified → kirim ulang via Resend
+            app(\App\Services\VerificationMailer::class)->send($existing);
 
-        // kirim link verifikasi (signed URL)
-        $user->sendEmailVerificationNotification();
-        // kirim link verifikasi via Resend (service kamu)
-        app(\App\Services\VerificationMailer::class)->send($user);
+            return response()->json([
+                'message' => 'Email sudah terdaftar tapi belum terverifikasi. Tautan verifikasi telah dikirim ulang.',
+                'need_verification' => true,
+            ], 200);
+        }
 
+        try {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => bcrypt($data['password']),
+            ]);
 
-        // TIDAK kirim token. Suruh cek email.
-        return response()->json([
-            'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
-        ], 201);
+            // KIRIM VERIFIKASI VIA RESEND (JANGAN panggil bawaan Laravel lagi)
+            app(\App\Services\VerificationMailer::class)->send($user);
+
+            return response()->json([
+                'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
+            ], 201);
+
+        } catch (QueryException $e) {
+            // race condition guard (Postgres duplicate key)
+            if ($e->getCode() === '23505') {
+                return response()->json([
+                    'message' => 'Periksa kembali data yang diisi.',
+                    'errors'  => ['email' => ['Email sudah terdaftar.']],
+                ], 422);
+            }
+            throw $e;
+        }
     }
 
     public function login(Request $r)
