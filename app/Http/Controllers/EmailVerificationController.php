@@ -1,51 +1,51 @@
 <?php
 
-// app/Http/Controllers/EmailVerificationController.php
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Auth\Events\Verified;
 
 class EmailVerificationController extends Controller
 {
-    public function verify(Request $request, $id, $hash)
+    public function verify(EmailVerificationRequest $request)
     {
-        // validasi signature di URL
-        if (! URL::hasValidSignature($request)) {
-            return response()->json(['message' => 'Invalid/expired link'], 403);
+        $user = User::findOrFail($request->route('id'));
+
+        // validasi hash email
+        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+            return redirect(config('app.frontend_url').'/verified?ok=0');
         }
 
-        $user = User::findOrFail($id);
-
-        // pastikan hash cocok (laravel default pakai sha1(email))
-        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            return response()->json(['message' => 'Invalid hash'], 403);
+        // sudah verified?
+        if ($user->hasVerifiedEmail()) {
+            return redirect(config('app.frontend_url').'/verified?ok=1');
         }
 
-        if (! $user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
-            event(new Verified($user));
+        // signature valid?
+        if (! $request->hasValidSignature()) {
+            return redirect(config('app.frontend_url').'/verified?ok=0');
         }
 
-        // Redirect ke FE (SPA) dengan status sukses
-        $front = rtrim(config('app.frontend_url', env('FRONTEND_URL', '/')), '/');
-        return redirect()->away($front . '/verified?ok=1');
+        // tandai verified
+        $user->markEmailAsVerified();
+        event(new Verified($user));
+
+        return redirect(config('app.frontend_url').'/verified?ok=1');
     }
 
-    // resend via email (tanpa login) — rate limit di route
     public function resend(Request $request)
     {
         $data = $request->validate(['email' => 'required|email']);
         $user = User::where('email', $data['email'])->first();
 
-        // jangan bocorkan apakah email ada/tidak
+        // selalu balas generik agar tidak bocorkan keberadaan email
         if ($user && ! $user->hasVerifiedEmail()) {
-            $user->sendEmailVerificationNotification();
+            app(\App\Services\VerificationMailer::class)->send($user);
         }
 
-        return response()->json(['message' => 'Jika email terdaftar & belum terverifikasi, tautan verifikasi telah dikirim.']);
+        return response()->json(['message' => 'Jika email terdaftar, tautan verifikasi telah dikirim.']);
     }
 }
-

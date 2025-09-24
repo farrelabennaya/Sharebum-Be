@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function register(Request $r)
+   public function register(Request $r)
 {
     $data = $r->validate([
         'name'  => 'required|string|max:120',
@@ -20,24 +20,25 @@ class AuthController extends Controller
     ]);
 
     if (filled($data['cf-turnstile-response'] ?? null)) {
-        if (! \App\Support\Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
+        if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
             return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
         }
     }
 
-    $user = \App\Models\User::create([
+    $user = User::create([
         'name' => $data['name'],
         'email' => $data['email'],
         'password' => bcrypt($data['password']),
     ]);
 
-    // kirim email verifikasi (pakai mailer default -> Resend SMTP)
-    $user->sendEmailVerificationNotification();
+    // KIRIM via Resend SDK (pilihan kita)
+    app(\App\Services\VerificationMailer::class)->send($user);
 
     return response()->json([
         'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
     ], 201);
 }
+
 
 
     public function login(Request $r)
