@@ -13,6 +13,11 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET'),
+        'enabled' => env('TURNSTILE_ENABLED', true),
+    ],
+
 
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
