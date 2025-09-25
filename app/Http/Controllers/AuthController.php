@@ -79,54 +79,62 @@ class AuthController extends Controller
     }
 
     public function google(Request $r)
-    {
-        $data = $r->validate([
-            'id_token' => 'required|string',
-            'cf-turnstile-response' => 'required|string',
-        ]);
+{
+    $data = $r->validate([
+        'id_token' => 'required|string',
+        'cf-turnstile-response' => 'required|string',
+    ]);
 
-        if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
-            return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
-        }
-
-        $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
-        $payload = $client->verifyIdToken($data['id_token']);
-        if (! $payload) {
-            return response()->json(['message' => 'Invalid Google token'], 401);
-        }
-
-        $googleId = $payload['sub'] ?? null;
-        $email    = $payload['email'] ?? null;
-        $name     = $payload['name']  ?? ($payload['given_name'] ?? 'User');
-
-        if (! $googleId || ! $email) {
-            return response()->json(['message' => 'Google payload incomplete'], 422);
-        }
-
-        $user = User::where('google_id', $googleId)->orWhere('email', $email)->first();
-
-        if (! $user) {
-            $user = User::create([
-                'name'      => $name,
-                'email'     => $email,
-                'google_id' => $googleId,
-                'password'  => bcrypt(str()->random(40)),
-                // kalau mau, anggap verified bila $payload['email_verified'] === true
-                'email_verified_at' => ($payload['email_verified'] ?? false) ? now() : null,
-            ]);
-        } elseif (! $user->google_id) {
-            $user->google_id = $googleId;
-            $user->save();
-        }
-
-        // kalau belum verified dan email_verified==false, block
-        if (! $user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email Google belum terverifikasi.'], 403);
-        }
-
-        return response()->json([
-            'token' => $user->createToken('api')->plainTextToken,
-            'user'  => $user,
-        ]);
+    if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
+        return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
     }
+
+    $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+    $payload = $client->verifyIdToken($data['id_token']);
+    if (! $payload) {
+        return response()->json(['message' => 'Invalid Google token'], 401);
+    }
+
+    $googleId = $payload['sub'] ?? null;
+    $email    = $payload['email'] ?? null;
+    $name     = $payload['name']  ?? ($payload['given_name'] ?? 'User');
+
+    if (! $googleId || ! $email) {
+        return response()->json(['message' => 'Google payload incomplete'], 422);
+    }
+
+    // cari user by google_id atau email
+    $user = User::where('google_id', $googleId)->orWhere('email', $email)->first();
+
+    if (! $user) {
+        // buat user baru
+        $user = User::create([
+            'name'      => $name,
+            'email'     => $email,
+            'google_id' => $googleId,
+            'password'  => bcrypt(str()->random(40)),
+            // Langsung dianggap verified untuk social login
+            'email_verified_at' => now(),
+        ]);
+    } else {
+        // link google_id jika belum
+        if (! $user->google_id) {
+            $user->google_id = $googleId;
+        }
+        // pastikan verified
+        if (! $user->hasVerifiedEmail()) {
+            $user->email_verified_at = now(); // atau $user->markEmailAsVerified();
+        }
+        $user->save();
+    }
+
+    // → HAPUS blok "if (! $user->hasVerifiedEmail()) return 403" untuk Google.
+    // Karena kita sudah tandai verified di atas.
+
+    return response()->json([
+        'token' => $user->createToken('api')->plainTextToken,
+        'user'  => $user,
+    ]);
+}
+
 }
