@@ -33,10 +33,12 @@ class AuthController extends Controller
         'password' => bcrypt($data['password']),
     ]);
 
+    // ⬇️ kirim verifikasi SEKARANG (tanpa queue)
     try {
-        dispatch(new SendVerificationEmailJob($user)); // non-blocking
+        app(\App\Services\VerificationMailer::class)->send($user);
     } catch (\Throwable $e) {
-        Log::error('Dispatch verify mail failed: '.$e->getMessage());
+        Log::error('Resend verify failed: '.$e->getMessage());
+        // jangan throw 500; biar register tetap 201
     }
 
     return response()->json([
