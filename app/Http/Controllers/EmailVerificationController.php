@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Log;
 
 class EmailVerificationController extends Controller
 {
@@ -24,7 +24,7 @@ class EmailVerificationController extends Controller
             return redirect(config('app.frontend_url').'/verified?ok=1');
         }
 
-        // signature valid?
+        // signature valid? (middleware 'signed' juga sudah cek, ini tambahan aman)
         if (! $request->hasValidSignature()) {
             return redirect(config('app.frontend_url').'/verified?ok=0');
         }
@@ -43,7 +43,12 @@ class EmailVerificationController extends Controller
 
         // selalu balas generik agar tidak bocorkan keberadaan email
         if ($user && ! $user->hasVerifiedEmail()) {
-            app(\App\Services\VerificationMailer::class)->send($user);
+            try {
+                $user->sendEmailVerificationNotification(); // <<— pakai SMTP Brevo
+            } catch (\Throwable $e) {
+                Log::error('Resend verify email failed: '.$e->getMessage());
+                // tetap balas generik
+            }
         }
 
         return response()->json(['message' => 'Jika email terdaftar, tautan verifikasi telah dikirim.']);
