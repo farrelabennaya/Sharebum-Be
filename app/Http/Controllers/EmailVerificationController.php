@@ -11,30 +11,32 @@ use Illuminate\Support\Facades\Log;
 class EmailVerificationController extends Controller
 {
     public function verify(EmailVerificationRequest $request)
-    {
-        $user = User::findOrFail($request->route('id'));
+{
+    $user = \App\Models\User::findOrFail($request->route('id'));
 
-        // validasi hash email
-        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
-            return redirect(config('app.frontend_url').'/verified?ok=0');
-        }
-
-        // sudah verified?
-        if ($user->hasVerifiedEmail()) {
-            return redirect(config('app.frontend_url').'/verified?ok=1');
-        }
-
-        // signature valid? (middleware 'signed' juga sudah cek, ini tambahan aman)
-        if (! $request->hasValidSignature()) {
-            return redirect(config('app.frontend_url').'/verified?ok=0');
-        }
-
-        // tandai verified
-        $user->markEmailAsVerified();
-        event(new Verified($user));
-
-        return redirect(config('app.frontend_url').'/verified?ok=1');
+    if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+        return redirect(config('app.frontend_url').'/verified?ok=0');
     }
+
+    if (! $request->hasValidSignature()) {
+        return redirect(config('app.frontend_url').'/verified?ok=0');
+    }
+
+    if (! $user->hasVerifiedEmail()) {
+        $user->markEmailAsVerified();
+        event(new \Illuminate\Auth\Events\Verified($user));
+    }
+
+    // >>> auto-login setelah verifikasi
+    $token = $user->createToken('api')->plainTextToken;
+
+    // redirect ke FE, bawa token
+    return redirect(
+        rtrim(config('app.frontend_url'), '/').
+        '/verified?ok=1&token='.$token
+    );
+}
+
 
     public function resend(Request $request)
     {
