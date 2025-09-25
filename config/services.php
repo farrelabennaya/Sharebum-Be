@@ -25,7 +25,7 @@ return [
 
     'resend' => [
         'key' => env('RESEND_API_KEY'),
-        'from' => env('RESEND_FROM', 'no-reply@example.com'),
+        'from' => env('RESEND_FROM', 'onboarding@resend.dev'),
     ],
 
     'ses' => [

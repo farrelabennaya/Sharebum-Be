@@ -6,46 +6,43 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Support\Turnstile;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
+use App\Jobs\SendVerificationEmailJob;
 
 class AuthController extends Controller
 {
-    public function register(Request $r)
-    {
-        $data = $r->validate([
-            'name'  => 'required|string|max:120',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'cf-turnstile-response' => 'nullable|string',
-        ]);
+ public function register(Request $r)
+{
+    $data = $r->validate([
+        'name'  => 'required|string|max:120',
+        'email' => 'required|email|unique:users',
+        'password' => 'required|string|min:8|confirmed',
+        'cf-turnstile-response' => 'nullable|string',
+    ]);
 
-        if (filled($data['cf-turnstile-response'] ?? null)) {
-            if (! \App\Support\Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
-                return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
-            }
+    if (filled($data['cf-turnstile-response'] ?? null)) {
+        if (! \App\Support\Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
+            return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
         }
-
-        $user = \App\Models\User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-        ]);
-
-        // KIRIM via SMTP (Brevo) pakai notifikasi bawaan
-        try {
-            $user->sendEmailVerificationNotification();
-        } catch (\Throwable $e) {
-            Log::error('Verify email failed: ' . $e->getMessage());
-            // Jangan lempar 500; biar registrasi tetap sukses.
-        }
-
-        return response()->json([
-            'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
-        ], 201);
     }
 
+    $user = \App\Models\User::create([
+        'name' => $data['name'],
+        'email' => $data['email'],
+        'password' => bcrypt($data['password']),
+    ]);
 
+    try {
+        dispatch(new SendVerificationEmailJob($user)); // non-blocking
+    } catch (\Throwable $e) {
+        Log::error('Dispatch verify mail failed: '.$e->getMessage());
+    }
+
+    return response()->json([
+        'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
+    ], 201);
+}
 
     public function login(Request $r)
     {
