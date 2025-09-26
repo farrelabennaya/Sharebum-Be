@@ -12,39 +12,39 @@ use App\Jobs\SendVerificationEmailJob;
 
 class AuthController extends Controller
 {
- public function register(Request $r)
-{
-    $data = $r->validate([
-        'name'  => 'required|string|max:120',
-        'email' => 'required|email|unique:users',
-        'password' => 'required|string|min:8|confirmed',
-        'cf-turnstile-response' => 'nullable|string',
-    ]);
+    public function register(Request $r)
+    {
+        $data = $r->validate([
+            'name'  => 'required|string|max:120',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'cf-turnstile-response' => 'nullable|string',
+        ]);
 
-    if (filled($data['cf-turnstile-response'] ?? null)) {
-        if (! \App\Support\Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
-            return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
+        if (filled($data['cf-turnstile-response'] ?? null)) {
+            if (! \App\Support\Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
+                return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
+            }
         }
+
+        $user = \App\Models\User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => bcrypt($data['password']),
+        ]);
+
+        // ⬇️ kirim verifikasi SEKARANG (tanpa queue)
+        try {
+            app(\App\Services\VerificationMailer::class)->send($user);
+        } catch (\Throwable $e) {
+            Log::error('Resend verify failed: ' . $e->getMessage());
+            // jangan throw 500; biar register tetap 201
+        }
+
+        return response()->json([
+            'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
+        ], 201);
     }
-
-    $user = \App\Models\User::create([
-        'name' => $data['name'],
-        'email' => $data['email'],
-        'password' => bcrypt($data['password']),
-    ]);
-
-    // ⬇️ kirim verifikasi SEKARANG (tanpa queue)
-    try {
-        app(\App\Services\VerificationMailer::class)->send($user);
-    } catch (\Throwable $e) {
-        Log::error('Resend verify failed: '.$e->getMessage());
-        // jangan throw 500; biar register tetap 201
-    }
-
-    return response()->json([
-        'message' => 'Registrasi diterima. Cek email untuk verifikasi.',
-    ], 201);
-}
 
     public function login(Request $r)
     {
@@ -79,62 +79,63 @@ class AuthController extends Controller
     }
 
     public function google(Request $r)
-{
-    $data = $r->validate([
-        'id_token' => 'required|string',
-        'cf-turnstile-response' => 'required|string',
-    ]);
-
-    if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
-        return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
-    }
-
-    $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
-    $payload = $client->verifyIdToken($data['id_token']);
-    if (! $payload) {
-        return response()->json(['message' => 'Invalid Google token'], 401);
-    }
-
-    $googleId = $payload['sub'] ?? null;
-    $email    = $payload['email'] ?? null;
-    $name     = $payload['name']  ?? ($payload['given_name'] ?? 'User');
-
-    if (! $googleId || ! $email) {
-        return response()->json(['message' => 'Google payload incomplete'], 422);
-    }
-
-    // cari user by google_id atau email
-    $user = User::where('google_id', $googleId)->orWhere('email', $email)->first();
-
-    if (! $user) {
-        // buat user baru
-        $user = User::create([
-            'name'      => $name,
-            'email'     => $email,
-            'google_id' => $googleId,
-            'password'  => bcrypt(str()->random(40)),
-            // Langsung dianggap verified untuk social login
-            'email_verified_at' => now(),
+    {
+        $data = $r->validate([
+            'id_token' => 'required|string',
+            'cf-turnstile-response' => 'required|string',
         ]);
-    } else {
-        // link google_id jika belum
-        if (! $user->google_id) {
-            $user->google_id = $googleId;
+
+        if (! Turnstile::verify($data['cf-turnstile-response'], $r->ip())) {
+            return response()->json(['message' => 'Verifikasi manusia gagal'], 422);
         }
-        // pastikan verified
-        if (! $user->hasVerifiedEmail()) {
-            $user->email_verified_at = now(); // atau $user->markEmailAsVerified();
+
+        $client = new \Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);
+        $payload = $client->verifyIdToken($data['id_token']);
+        if (! $payload) {
+            return response()->json(['message' => 'Invalid Google token'], 401);
         }
-        $user->save();
+
+        $googleId = $payload['sub'] ?? null;
+        $email    = $payload['email'] ?? null;
+        $name     = $payload['name']  ?? ($payload['given_name'] ?? 'User');
+
+        if (! $googleId || ! $email) {
+            return response()->json(['message' => 'Google payload incomplete'], 422);
+        }
+
+        // cari user by google_id atau email
+        $user = User::where('google_id', $googleId)->orWhere('email', $email)->first();
+
+        if (! $user) {
+            $user = User::create([
+                'name'      => $name,
+                'email'     => $email,
+                'google_id' => $googleId,
+                'password'  => bcrypt(str()->random(40)),
+            ]);
+
+            // tandai verified (aman walau tidak fillable)
+            $user->forceFill(['email_verified_at' => now()])->save();
+            // opsional, kalau kamu butuh event listener Verified:
+            event(new \Illuminate\Auth\Events\Verified($user));
+        } else {
+            // link google_id jika belum
+            if (! $user->google_id) {
+                $user->google_id = $googleId;
+            }
+            // pastikan verified
+            if (! $user->hasVerifiedEmail()) {
+                $user->email_verified_at = now(); // atau $user->markEmailAsVerified();
+            }
+            $user->save();
+        }
+
+        // → HAPUS blok "if (! $user->hasVerifiedEmail()) return 403" untuk Google.
+        // Karena kita sudah tandai verified di atas.
+
+        return response()->json([
+            'token' => $user->createToken('api')->plainTextToken,
+            'user'  => $user,
+        ]);
     }
-
-    // → HAPUS blok "if (! $user->hasVerifiedEmail()) return 403" untuk Google.
-    // Karena kita sudah tandai verified di atas.
-
-    return response()->json([
-        'token' => $user->createToken('api')->plainTextToken,
-        'user'  => $user,
-    ]);
-}
-
 }
