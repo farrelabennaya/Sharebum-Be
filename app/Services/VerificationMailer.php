@@ -43,7 +43,127 @@ class VerificationMailer
 
     private function html(string $name, string $link): string
     {
-        $e = static fn ($v) => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
-        return "<p>Halo <b>{$e($name)}</b>, klik <a href=\"{$e($link)}\">tautan verifikasi</a>. Berlaku 60 menit.</p>";
+        $esc = static fn($v) => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+
+        $brand = [
+            'bg'      => '#0b0b10',   // background luar
+            'card'    => '#11131a',   // kartu
+            'border'  => '#27272a',
+            'text'    => '#e5e7eb',
+            'muted'   => '#94a3b8',
+            'cta'     => '#7c3aed',   // ungu (bisa kamu ganti)
+            'ctaTxt'  => '#ffffff',
+            'link'    => '#a78bfa',
+        ];
+
+        $name = $esc($name);
+        $linkEsc = $esc($link);
+
+        return <<<HTML
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verifikasi Email</title>
+    <!-- Preheader (disembunyikan di body, tampil di preview list) -->
+    <style>
+      .preheader { display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all; }
+      @media (max-width: 600px) {
+        .container { width: 100% !important; }
+        .card { padding: 20px !important; }
+        .btn { display:block !important; width:100% !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background:{$brand['bg']};">
+    <div class="preheader">Klik tombol untuk aktivasi akun kamu. Link berlaku 60 menit.</div>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:{$brand['bg']}; padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" class="container" style="width:560px; max-width:560px;">
+            <!-- Header / Logo (opsional) -->
+            <tr>
+              <td align="left" style="padding:0 4px 12px 4px;">
+                <div style="font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['text']};">
+                  Sharebum
+                </div>
+              </td>
+            </tr>
+
+            <!-- Card -->
+            <tr>
+              <td>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                       class="card"
+                       style="background:{$brand['card']}; border:1px solid {$brand['border']}; border-radius:14px; padding:28px;">
+                  <tr>
+                    <td style="font:700 20px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['text']}; padding-bottom:8px;">
+                      Verifikasi Email
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="font:400 14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['muted']}; padding-bottom:18px;">
+                      Hai <span style="color:{$brand['text']}; font-weight:600;">{$name}</span>,<br>
+                      Terima kasih sudah mendaftar. Klik tombol di bawah untuk mengaktifkan akun kamu.
+                    </td>
+                  </tr>
+
+                  <!-- CTA -->
+                  <tr>
+                    <td align="left" style="padding-bottom:18px;">
+                      <a href="{$linkEsc}"
+                         class="btn"
+                         style="background:{$brand['cta']}; color:{$brand['ctaTxt']}; text-decoration:none;
+                                font:600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+                                padding:12px 18px; border-radius:10px; display:inline-block;">
+                        Verifikasi Email
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Expiry info -->
+                  <tr>
+                    <td style="font:400 12px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['muted']}; padding-bottom:12px;">
+                      Link ini berlaku selama 60 menit. Jika tombol tidak berfungsi, salin dan buka URL berikut:
+                    </td>
+                  </tr>
+
+                  <!-- Fallback URL -->
+                  <tr>
+                    <td style="background:#0f1117; border:1px solid {$brand['border']}; border-radius:10px; padding:12px; word-break:break-all;">
+                      <a href="{$linkEsc}" style="color:{$brand['link']}; text-decoration:none;">{$linkEsc}</a>
+                    </td>
+                  </tr>
+
+                  <!-- Support -->
+                  <tr>
+                    <td style="font:400 12px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['muted']}; padding-top:18px;">
+                      Tidak merasa mendaftar? Abaikan email ini.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding:14px 4px 0 4px;">
+                <div style="font:400 12px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:{$brand['muted']};">
+                  © <!--{Y}--> Sharebum • Email ini dikirim otomatis, mohon jangan balas.
+                </div>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+HTML;
     }
 }
