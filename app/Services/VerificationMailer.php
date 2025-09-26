@@ -181,7 +181,7 @@ class VerificationMailer
                         line-height:1.2;
                         text-shadow: 0 2px 4px rgba(0,0,0,0.2);
                       ">
-                        Selamat Datang di Sharebum! 🎉
+                        Selamat Datang di Sharebum!
                       </h1>
 
                       <!-- Banner Subtitle -->
@@ -272,7 +272,7 @@ class VerificationMailer
                                     letter-spacing:0.025em;
                                     transition:all 0.2s ease;
                                   ">
-                                    ✨ Verifikasi Email Sekarang
+                                    Verifikasi Email
                                   </a>
                                 </td>
                               </tr>
@@ -293,7 +293,7 @@ class VerificationMailer
                                 font-weight:600;
                                 letter-spacing:0.025em;
                               ">
-                                ⏰ Berlaku 60 menit
+                                Berlaku 60 menit
                               </span>
                             </div>
                           </td>
@@ -303,7 +303,7 @@ class VerificationMailer
                   </tr>
 
                   <!-- Features Preview -->
-                  <tr>
+                  <!-- <tr>
                     <td style="padding:24px 0;">
                       <div style="
                         background:{$brand['cardInner']};
@@ -389,7 +389,7 @@ class VerificationMailer
                         </table>
                       </div>
                     </td>
-                  </tr>
+                  </tr> -->
 
                   <!-- Alternative link section -->
                   <tr>
