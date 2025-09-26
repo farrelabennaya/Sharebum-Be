@@ -113,17 +113,52 @@ class VerificationMailer
                   </tr>
 
                   <!-- CTA -->
-                  <tr>
-                    <td align="left" style="padding-bottom:18px;">
-                      <a href="{$linkEsc}"
-                         class="btn"
-                         style="background:{$brand['cta']}; color:{$brand['ctaTxt']}; text-decoration:none;
-                                font:600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-                                padding:12px 18px; border-radius:10px; display:inline-block;">
-                        Verifikasi Email
-                      </a>
-                    </td>
-                  </tr>
+                  <!-- Wrapper table biar aman di semua klien -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate; width:auto; max-width:100%;">
+  <tr>
+    <td align="left" style="padding-bottom:18px;">
+      <!-- Inner table bikin button lebih stabil di Outlook -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate; max-width:100%;">
+        <tr>
+          <td align="center" bgcolor="#7c3aed" style="
+              border-radius:10px;
+              mso-padding-alt:12px 18px; /* Outlook */
+              ">
+            <a href="{$linkEsc}"
+               style="
+                 display:inline-block;
+                 max-width:100%;
+                 background:{$brand['cta']};
+                 color:{$brand['ctaTxt']};
+                 text-decoration:none;
+                 font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+                 padding:12px 18px;
+                 border-radius:10px;
+                 box-sizing:border-box;
+                 word-break:keep-all;
+                 white-space:nowrap;
+               ">
+              Verifikasi Email
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Media query: kecilkan font & padding di layar sempit -->
+<style>
+@media screen and (max-width:480px) {
+  a.btn, /* kalau kamu pakai class */
+  a[href*="{$linkEsc}"] {
+    font-size:13px !important;
+    padding:10px 14px !important;
+    white-space:normal !important; /* boleh wrap kalau perlu */
+  }
+}
+</style>
+
 
                   <!-- Expiry info -->
                   <tr>
