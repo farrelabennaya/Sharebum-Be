@@ -55,6 +55,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
      public function getHasPasswordAttribute(): bool
     {
-        return filled($this->password); // true kalau ada hash
+         return (bool) $this->password_set_at; // true kalau ada hash
     }
 }

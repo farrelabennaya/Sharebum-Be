@@ -107,8 +107,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
 });
 
+// routes/api.php
 Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
-    return response()->json($request->user());
+    $user = $request->user();
+    $user->append('has_password');  // ← penting
+    return response()->json($user);
 });
 
 // Asset-level (di halaman public/lightbox)
