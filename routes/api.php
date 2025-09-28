@@ -18,6 +18,7 @@ use App\Http\Controllers\PublicAlbumController;
 use App\Http\Controllers\ProfileAvatarController;
 use App\Http\Controllers\ProfileSecurityController;
 use App\Http\Controllers\EmailVerificationController;
+
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login',    [AuthController::class, 'login']);
 Route::post('/auth/logout',   [AuthController::class, 'logout'])->middleware('auth:sanctum');
@@ -94,7 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/assets/{asset}/comments', [AssetSocialController::class, 'comment']);   // tambah komentar
     Route::get('/assets/{asset}/reactions', [AssetSocialController::class, 'reactions']); // { "❤": [ {user_id,...} ], ... }
 
-     // Profil dasar
+    // Profil dasar
     Route::get('/me', [ProfileController::class, 'show']);
     Route::patch('/me', [ProfileController::class, 'update']);
 
@@ -102,9 +103,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/avatar', [ProfileAvatarController::class, 'store']);
     Route::delete('/me/avatar', [ProfileAvatarController::class, 'destroy']);
 
-      Route::patch('/me/password', [ProfileSecurityController::class, 'updatePassword']);
+    Route::patch('/me/password', [ProfileSecurityController::class, 'updatePassword']);
     Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
-
 });
 
 Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
@@ -119,7 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-    ->middleware(['signed','throttle:6,1'])
+    ->middleware(['signed', 'throttle:6,1'])
     ->name('verification.verify');
 
 // resend link (tanpa login, rate limit ketat)

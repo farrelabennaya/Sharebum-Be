@@ -7,27 +7,37 @@ use Illuminate\Support\Facades\Hash;
 
 class ProfileSecurityController extends Controller
 {
+    // app/Http/Controllers/ProfileSecurityController.php
     public function updatePassword(Request $r)
     {
         $user = $r->user();
 
-        $data = $r->validate([
-            'current_password'      => ['required','string'],
-            'password'              => ['required','string','min:8','confirmed'], // kirim password_confirmation juga
-        ]);
+        $isGoogleOnly = $user->google_id && is_null($user->password_set_at);
 
-        // cek current password
-        if (! Hash::check($data['current_password'], $user->password)) {
-            return response()->json([
-                'message' => 'Password saat ini salah.',
-                'errors'  => ['current_password' => ['Password saat ini salah.']],
-            ], 422);
+        $rules = [
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ];
+        if (! $isGoogleOnly) {
+            $rules['current_password'] = ['required', 'string'];
         }
 
-        // update
+        $data = $r->validate($rules);
+
+        if (! $isGoogleOnly) {
+            if (! Hash::check($data['current_password'], $user->password)) {
+                return response()->json([
+                    'message' => 'Password saat ini salah.',
+                    'errors'  => ['current_password' => ['Password saat ini salah.']],
+                ], 422);
+            }
+        }
+
         $user->password = bcrypt($data['password']);
+        if ($isGoogleOnly) {
+            $user->password_set_at = now(); // tandai sudah punya password lokal
+        }
         $user->save();
 
-        return response()->json(['ok' => true, 'message' => 'Password berhasil diganti.']);
+        return response()->json(['ok' => true, 'message' => $isGoogleOnly ? 'Password berhasil dibuat.' : 'Password berhasil diganti.']);
     }
 }
