@@ -38,6 +38,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'remember_token',
     ];
 
+       protected $appends = ['has_password'];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -49,5 +51,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+     public function getHasPasswordAttribute(): bool
+    {
+        return filled($this->password); // true kalau ada hash
     }
 }
