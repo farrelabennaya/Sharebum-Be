@@ -12,26 +12,23 @@ class ProfileSecurityController extends Controller
     {
         $user = $r->user();
 
-        // Akun Google yang belum pernah set password lokal
-        $isGoogleOnly = !filled($user->password) && filled($user->google_id);
+        // Wajib minta current_password hanya jika user SUDAH punya password lokal
+        // pakai flag yang stabil:
+        $requiresCurrent = (bool) $user->password_set_at;   // atau: $user->has_password
 
         $rules = [
-            'password' => [
-                'required',
-                'confirmed',
-                Password::min(8), // bisa tambah: ->mixedCase()->numbers()->symbols()
-            ],
+            'password' => ['required', 'confirmed', Password::min(8)],
         ];
 
-        if (!$isGoogleOnly) {
-            // Wajib verifikasi password lama utk akun yang sudah punya password
+        if ($requiresCurrent) {
+            // Laravel akan cek otomatis terhadap password user aktif
             $rules['current_password'] = ['required', 'current_password'];
         }
 
         $data = $r->validate($rules);
 
-        // (Opsional) Larang password baru sama dengan yang lama (untuk akun yg sdh punya password)
-        if (!$isGoogleOnly && Hash::check($data['password'], $user->password)) {
+        // (opsional) larang password baru sama dengan lama jika sudah punya password
+        if ($requiresCurrent && Hash::check($data['password'], $user->password)) {
             return response()->json([
                 'message' => 'Password baru tidak boleh sama dengan password saat ini.',
                 'errors'  => ['password' => ['Password baru tidak boleh sama dengan password saat ini.']],
@@ -41,8 +38,8 @@ class ProfileSecurityController extends Controller
         // Set password baru
         $user->password = Hash::make($data['password']);
 
-        // Tandai bahwa user ini sudah punya password lokal (untuk akun Google)
-        if ($isGoogleOnly) {
+        // Jika ini pertama kali (akun Google), tandai sudah memiliki password lokal
+        if (! $requiresCurrent) {
             $user->password_set_at = now();
         }
 
@@ -50,7 +47,7 @@ class ProfileSecurityController extends Controller
 
         return response()->json([
             'ok'      => true,
-            'message' => $isGoogleOnly ? 'Password berhasil dibuat.' : 'Password berhasil diganti.',
+            'message' => $requiresCurrent ? 'Password berhasil diganti.' : 'Password berhasil dibuat.',
         ]);
     }
 }
