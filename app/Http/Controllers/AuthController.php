@@ -111,7 +111,7 @@ class AuthController extends Controller
                 'name'      => $name,
                 'email'     => $email,
                 'google_id' => $googleId,
-                'password'  => bcrypt(str()->random(40)),
+                // 'password'  => bcrypt(str()->random(40)),
             ]);
 
             // tandai verified (aman walau tidak fillable)
