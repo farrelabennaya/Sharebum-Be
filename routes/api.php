@@ -16,6 +16,7 @@ use App\Http\Controllers\ReactionController;
 use App\Http\Controllers\AssetSocialController;
 use App\Http\Controllers\PublicAlbumController;
 use App\Http\Controllers\ProfileAvatarController;
+use App\Http\Controllers\ProfileSecurityController;
 use App\Http\Controllers\EmailVerificationController;
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login',    [AuthController::class, 'login']);
@@ -100,6 +101,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Avatar
     Route::post('/me/avatar', [ProfileAvatarController::class, 'store']);
     Route::delete('/me/avatar', [ProfileAvatarController::class, 'destroy']);
+
+      Route::patch('/me/password', [ProfileSecurityController::class, 'updatePassword']);
+    Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
 
 });
 
